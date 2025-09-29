@@ -23,9 +23,6 @@ Python Agent (LLM) ←→ WebSocket ←→ PHP Bridge ←→ Symfony Consumer Ap
 cd bridge-php
 composer install
 
-cd consumer-app
-composer install
-
 pip install aiohttp
 ```
 
