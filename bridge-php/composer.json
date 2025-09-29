@@ -1,0 +1,18 @@
+{
+    "name": "utilisateur/bridge-php",
+    "autoload": {
+        "psr-4": {
+            "Utilisateur\\BridgePhp\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "NDV-tiime",
+            "email": "nicolas.devatine@tiime.fr"
+        }
+    ],
+    "require": {
+        "datto/json-rpc": "^6.1",
+        "phrity/websocket": "^3.6"
+    }
+}
