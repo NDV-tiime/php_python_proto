@@ -11,10 +11,6 @@ use Datto\JsonRpc\Server;
 use Datto\JsonRpc\Evaluator;
 use App\Service\ConsumerFunctions;
 
-/**
- * Adaptateur qui implémente l'interface Evaluator de Datto\JsonRpc
- * et délègue les appels à l'objet ConsumerFunctions.
- */
 class ConsumerEvaluator implements Evaluator
 {
     private ConsumerFunctions $api;
@@ -52,7 +48,6 @@ class ConsumerEvaluator implements Evaluator
     }
 }
 
-// --- Instanciation ---
 $api = new ConsumerFunctions();
 $evaluator = new ConsumerEvaluator($api);
 $server = new Server($evaluator);
@@ -61,7 +56,6 @@ $wsUrl = "ws://127.0.0.1:9000/ws";
 echo "PHP Bridge: Connecting to $wsUrl ...\n";
 
 try {
-    // Création du client WebSocket avec middlewares
     $client = new Client($wsUrl);
     $client
         ->addMiddleware(new CloseHandler())
