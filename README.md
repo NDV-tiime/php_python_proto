@@ -12,13 +12,13 @@ A prototype demonstrating a Symfony application using a PHP library to communica
 ```
 
 - **Symfony App**: Web application with a chatbot interface
-- **PHP LLM Agent Library**: Reusable library for communicating with LLM agents
+- **PHP-Python Library**: Library for communicating with LLM services
 - **Python LLM Agent**: Simulates an LLM agent that makes function calls
 
 ## Prerequisites
 
 - **PHP 8.2+** with Composer
-- **Python 3.8+** with aiohttp
+- **Python 3.7+** with aiohttp
 
 ## Project Structure
 
