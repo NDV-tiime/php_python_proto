@@ -94,10 +94,3 @@ The library provides an `AgentClient` class that:
 ### 3. Python Agent
 
 - Simulates an LLM that makes function calls
-
-## Notes
-
-- The prototype uses synchronous PHP WebSocket communication
-- Python agent automatically closes connection after completing its analysis
-- All JSON-RPC messages are logged in both Python terminal and web interface
-- Functions are registered dynamically in the Symfony controller
