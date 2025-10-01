@@ -1,43 +1,103 @@
-# PHP-Python RPC Prototype
+# PHP-Python Prototype
 
-A prototype demonstrating communication between a Python LLM Agent and PHP consumer functions via WebSocket and JSON-RPC.
+A prototype demonstrating a Symfony application using a PHP library to communicate with LLM agents via WebSocket and JSON-RPC.
 
 ## Architecture
 
 ```
-Python Agent (LLM) ←→ WebSocket ←→ PHP Bridge ←→ Symfony Consumer App
+┌─────────────────┐    Library     ┌──────────────────┐    WebSocket     ┌─────────────────┐
+│  Symfony App    │ ←──────────→   │   PHP Library    │ ←─────────────→  │      Python     │
+│   (Web Demo)    │   Integration  │ (Communication)  │   JSON-RPC       │   (LLM Logic)   │
+└─────────────────┘                └──────────────────┘                  └─────────────────┘
 ```
 
-- **Python Agent**: simulates an LLM agent capable of calling functions from the consumer app.
-- **PHP Bridge**: webSocket client that translates between WebSocket and JSON-RPC
-- **Consumer App**: Symfony application implementing functions that the LLM agent can call
+- **Symfony App**: Web application with a chatbot interface
+- **PHP LLM Agent Library**: Reusable library for communicating with LLM agents
+- **Python LLM Agent**: Simulates an LLM agent that makes function calls
 
 ## Prerequisites
 
-- **PHP 8.1+** with Composer
-- **Python 3.8+**
+- **PHP 8.2+** with Composer
+- **Python 3.8+** with aiohttp
 
-## Quick Setup
+## Project Structure
+
+```
+php_python_proto/
+├── llm-agent-lib/          # PHP library for LLM agent communication
+├── symfony-app/            # Symfony application with chatbot
+└── agent-python/           # Python LLM agent server
+```
+
+## Setup Instructions
+
+### 1. Install PHP dependencies
 
 ```bash
-cd bridge-php
+cd llm-agent-lib
 composer install
 
+cd symfony-app
+composer install
+```
+
+### 2. Install Python dependencies
+
+```bash
 pip install aiohttp
 ```
 
-## Running the Prototype
+## Running the prototype
 
-### Terminal 1: Start Python Agent Server
-
-```bash
-python agent-python/agent_server.py
-```
-
-
-
-### Terminal 2: Start PHP Bridge
+### Terminal 1: Start Python Server
 
 ```bash
-php bridge-php/bridge.php
+cd agent-python
+python agent_server.py
 ```
+
+### Terminal 2: Start Symfony Application
+
+```bash
+cd symfony-app
+php -S localhost:8000 -t public
+```
+
+### Testing the Application
+
+1. Open your browser and go to: **http://localhost:8000**
+2. Enter your name
+3. Send messages to the LLM agent (try words or phrases like "hello", "test message", etc.)
+4. Watch the agent analyze your text using the available functions:
+   - `getStringLength`: Gets the length of text
+   - `countWords`: Counts words in text
+   - `reverseString`: Reverses the text
+   - `greetUser`: Greets the user
+
+## How It Works
+
+### 1. PHP Library (`llm-agent-lib`)
+
+The library provides an `AgentClient` class that:
+- Connects to the Python WebSocket server
+- Registers PHP functions that the agent can call
+- Handles JSON-RPC communication
+- Returns raw message exchange data for debugging
+
+### 2. Symfony Application
+
+- Provides a simple chatbot web interface
+- Uses the PHP library to communicate with the agent
+- Displays both the agent response and raw JSON-RPC messages
+- Implements demo functions for text analysis
+
+### 3. Python Agent
+
+- Simulates an LLM that makes function calls
+
+## Notes
+
+- The prototype uses synchronous PHP WebSocket communication
+- Python agent automatically closes connection after completing its analysis
+- All JSON-RPC messages are logged in both Python terminal and web interface
+- Functions are registered dynamically in the Symfony controller

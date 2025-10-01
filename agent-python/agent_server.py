@@ -1,153 +1,260 @@
-import asyncio, json, uuid
+import asyncio
+import json
+import uuid
+from typing import Any, Dict
+
+import aiohttp
 from aiohttp import web
 
 class JsonRpcClient:
+    """JSON-RPC 2.0 client for communicating with browser extension."""
+
     def __init__(self, websocket: web.WebSocketResponse):
+        self.pending_requests: Dict[str, asyncio.Future] = {}
         self.websocket = websocket
-        self.pending = {}  # id -> Future
 
-    async def call_method(self, method: str, params=None, timeout: float = 5.0):
+    async def call_method(
+        self, method: str, params: Any = None, timeout: float = 5.0
+    ) -> Any:
+        """
+        Call a JSON-RPC method on the browser extension.
+
+        Args:
+            method: The method name to call
+            params: Parameters to pass to the method
+            timeout: Timeout in seconds
+
+        Returns:
+            The result from the method call
+
+        Raises:
+            RuntimeError: If no WebSocket connection is available
+            asyncio.TimeoutError: If the request times out
+            Exception: If the RPC call returns an error
+        """
         if self.websocket.closed:
-            raise RuntimeError("WebSocket closed")
+            raise RuntimeError("No WebSocket connection available")
 
-        rid = str(uuid.uuid4())
-        rpc = {"jsonrpc": "2.0", "method": method, "id": rid}
+        request_id = str(uuid.uuid4())
 
-        if params is not None:
-            rpc["params"] = params
-            
-        wrapper = {"type": "rpc_call", "id": rid, "data": rpc}
+        # Create JSON-RPC request
+        rpc_request = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params,
+            "id": request_id,
+        }
 
-        loop = asyncio.get_event_loop()
-        fut = loop.create_future()
-        self.pending[rid] = fut
+        # Wrap in WebSocket message format expected by extension
+        ws_message = {"type": "rpc_call", "id": request_id, "data": rpc_request}
 
-        await self.websocket.send_json(wrapper)
-        print(f"[Python] Sent RPC: {json.dumps(rpc)}")
+        # Create future for response
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        self.pending_requests[request_id] = future
 
         try:
-            result = await asyncio.wait_for(fut, timeout=timeout)
-            return result
-        finally:
-            self.pending.pop(rid, None)
+            # Send request
+            if self.websocket.closed:
+                raise RuntimeError("WebSocket connection closed")
 
-    async def handle_message(self, msg: dict):
-        if msg.get("type") == "rpc_response":
-            rid = msg.get("id")
-            data = msg.get("data", {})
-            fut = self.pending.get(rid)
-            if fut and not fut.done():
-                if "error" in data:
-                    e = data["error"]
-                    fut.set_exception(Exception(f"RPC Error {e.get('code')}: {e.get('message')} ({e.get('data')})"))
-                else:
-                    fut.set_result(data.get("result"))
+            print(f"[Python] Sending RPC: {json.dumps(rpc_request)}")
+            await self.websocket.send_json(ws_message)
+
+            # Wait for response with timeout
+            result = await asyncio.wait_for(future, timeout=timeout)
+            return result
+
+        except Exception:
+            # Clean up pending request
+            self.pending_requests.pop(request_id, None)
+            raise
+
+    async def handle_message(self, message: Dict[str, Any]):
+        """
+        Handle incoming WebSocket message.
+
+        Args:
+            message: The parsed WebSocket message
+        """
+        if message.get("type") == "rpc_response":
+            request_id = message.get("id")
+            rpc_response = message.get("data")
+
+            print(f"[Python] Received RPC response: {json.dumps(rpc_response)}")
+
+            if request_id in self.pending_requests:
+                future = self.pending_requests.pop(request_id)
+
+                if not future.done():
+                    if rpc_response is None:
+                        future.set_exception(Exception("RPC Error: Received null response"))
+                    elif "error" in rpc_response:
+                        error = rpc_response["error"]
+                        future.set_exception(
+                            Exception(
+                                f"RPC Error {error.get('code')}: {error.get('message')}"
+                            )
+                        )
+                    else:
+                        future.set_result(rpc_response.get("result"))
         else:
-            print(f"[Python] Non-RPC message: {msg}")
+            print(f"[Python] Received non-RPC response message: {message}")
 
     async def message_loop(self):
-        async for wsmsg in self.websocket:
-            if wsmsg.type == web.WSMsgType.TEXT:
-                try:
-                    await self.handle_message(json.loads(wsmsg.data))
-                except Exception as e:
-                    print(f"[Python] Bad message: {e}")
-            elif wsmsg.type == web.WSMsgType.ERROR:
-                logger.error(f"WebSocket error: {self.websocket.exception()}")
-                break
-            elif wsmsg.type == web.WSMsgType.CLOSE:
-                logger.info("WebSocket closed by client")
-                break
+        """
+        Handle incoming WebSocket messages
+        """
+        try:
+            async for msg in self.websocket:
+                if msg.type == aiohttp.WSMsgType.TEXT:
+                    try:
+                        data = json.loads(msg.data)
+                        await self.handle_message(data)
+                    except json.JSONDecodeError:
+                        print(f"[Python] Failed to parse WebSocket message: {msg.data}")
+                    except Exception as e:
+                        print(f"[Python] Error handling WebSocket message: {e}")
+                elif msg.type == aiohttp.WSMsgType.ERROR:
+                    print(f"[Python] WebSocket error: {self.websocket.exception()}")
+                    break
+                elif msg.type == aiohttp.WSMsgType.CLOSE:
+                    print("[Python] WebSocket closed by client")
+                    break
+        except Exception as e:
+            print(f"[Python] Message loop error: {e}")
+            raise
 
 class LLMAgent:
-    def __init__(self, rpc: JsonRpcClient):
+    def __init__(self, rpc: JsonRpcClient, user_message: str, user_name: str):
         self.rpc = rpc
+        self.user_message = user_message
+        self.user_name = user_name
         self.gen = self.agent_steps()
         self.current_step = None
-        self.step_count = 0
+        self.response_parts = []
         
     def agent_steps(self):
-        """Générateur qui simule les étapes d'un agent LLM"""
-        print("[Agent] LLM Agent starting...")
+        print(f"[Agent] LLM Agent starting analysis for {self.user_name}: '{self.user_message}'")
         
-        print("[Agent] Step 1: List available functions...")
-        funcs = yield ("listFunctions", None)
-        print(f"[Agent] Available functions: {funcs}")
+        self.response_parts = [f"Hello {self.user_name}!"]
+        self.response_parts.append(f"I'm analyzing your message \"{self.user_message}\"...")
         
-        print("[Agent] Step 2: Analyzing functions and planning...")
-        print("[Agent] I can see 'sayHello' and 'add' functions. Let me test them!")
+        length = yield ("getStringLength", [self.user_message])
+        print(f"[Agent] Length: {length}")
         
-        names_to_test = ["Alice", "Bob"]
-        for name in names_to_test:
-            print(f"[Agent] Step {self.step_count + 3}: Testing sayHello with '{name}'...")
-            result = yield ("sayHello", [name])
-            print(f"[Agent] sayHello('{name}') -> {result}")
-            self.step_count += 1
+        self.response_parts.append(f" It has {length} characters.")
+        current_response = " ".join(self.response_parts)
         
-        operations = [(5, 7), (10, 15)]
-        for a, b in operations:
-            print(f"[Agent] Step {self.step_count + 3}: Computing {a} + {b}...")
-            result = yield ("add", [a, b])
-            print(f"[Agent] add({a}, {b}) -> {result}")
-            self.step_count += 1
+        word_count = yield ("countWords", [self.user_message])
+        print(f"[Agent] Word count: {word_count}")
         
-        print("[Agent] All steps completed!")
-        return "DONE"
+        if word_count == 1:
+            self.response_parts[-1] = f" It's a single word with {length} characters."
+        else:
+            self.response_parts[-1] = f" It contains {word_count} words and {length} characters total."
+        current_response = " ".join(self.response_parts)
+        
+        reversed_text = yield ("reverseString", [self.user_message])
+        print(f"[Agent] Reversed: '{reversed_text}'")
+        
+        self.response_parts.append(f" When reversed, it becomes: \"{reversed_text}\"")
+        
+        if length <= 3:
+            self.response_parts.append(" That's quite a short message!")
+        elif length > 20:
+            self.response_parts.append(" That's a nice long message!")
+
+        if self.user_message.lower() == reversed_text.lower():
+            self.response_parts.append(" Interesting! Your message is a palindrome, it reads the same forwards and backwards!")
+
+        final_response = " ".join(self.response_parts)
+        print("[Agent] All analysis steps completed!")
+
+        return final_response
     
     async def next_step(self):
         try:
             if self.current_step is None:
                 self.current_step = next(self.gen)
             
-            if self.current_step == "DONE":
-                print("Agent has completed all steps.")
-                return False
+            if isinstance(self.current_step, str):
+                print("Agent has completed all analysis steps.")
+                return False, self.current_step
             
             method, params = self.current_step
-            print(f"Executing function call: {method}({params})")
+            print(f"[Agent] Executing function call: {method}({params})")
             
             result = await self.rpc.call_method(method, params)
             
             self.current_step = self.gen.send(result)
             
-            return True
+            return True, None
             
         except StopIteration as e:
-            return False
-        except Exception as e:
-            print(f"Error in agent step: {e}")
-            return False
+            # Generator completed, return the final result
+            final_result = e.value if hasattr(e, 'value') else " ".join(self.response_parts)
+            return False, final_result
 
-async def agent_logic(rpc: JsonRpcClient):
-    agent = LLMAgent(rpc)
+async def agent_logic(rpc: JsonRpcClient, user_message: str, user_name: str):
+    agent = LLMAgent(rpc, user_message, user_name)
 
     while True:
-        has_next = await agent.next_step()
+        has_next, final_response = await agent.next_step()
         if not has_next:
+            response = final_response
             break
+    # Send the agent's response back to PHP
+    agent_response_message = {
+        "type": "agent_response",
+        "data": {
+            "response": response,
+            "user_message": user_message,
+            "user_name": user_name
+        }
+    }
+    print(f"[Python] Sending agent response to PHP: {response}")
+    await rpc.websocket.send_json(agent_response_message)
 
-    print("\nLLM Agent session completed. Closing connection.")
+    print("[Python] Closing connection.")
     await rpc.websocket.close()
 
 async def ws_handler(request):
     ws = web.WebSocketResponse(autoping=True)
     await ws.prepare(request)
-    print("[Python] PHP bridge connected.")
+    print("[Python] PHP client connected via WebSocket")
+
+    # Wait for the initial setup message
+    async for msg in ws:
+        if msg.type == aiohttp.WSMsgType.TEXT:
+            data = json.loads(msg.data)
+            if data.get('type') == 'setup':
+                setup_data = data.get('data', {})
+                user_message = setup_data.get('user_message')
+                user_name = setup_data.get('user_name')
+                break
+        elif msg.type == aiohttp.WSMsgType.ERROR:
+            print(f"[Python] WebSocket error during setup: {ws.exception()}")
+            return ws
+        elif msg.type == aiohttp.WSMsgType.CLOSE:
+            print("[Python] WebSocket closed during setup")
+            return ws
 
     rpc = JsonRpcClient(ws)
     msg_task = asyncio.create_task(rpc.message_loop())
-    agent_task = asyncio.create_task(agent_logic(rpc))
+    agent_task = asyncio.create_task(agent_logic(rpc, user_message, user_name))
 
     done, pending = await asyncio.wait(
         [msg_task, agent_task], return_when=asyncio.FIRST_COMPLETED
     )
-    for t in pending:
-        t.cancel()
+    for task in pending:
+        task.cancel()
+
     return ws
 
 
 app = web.Application()
 app.add_routes([web.get("/ws", ws_handler)])
 
-print("Python: WS server on ws://127.0.0.1:9000/ws")
+print("[Python] WebSocket server starting on ws://127.0.0.1:9000/ws")
 web.run_app(app, port=9000)
