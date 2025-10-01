@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "49dd90d9728da75146ae2b7e5ff48f0f",
+    "content-hash": "570246d9af50817624bb297f9006f15f",
     "packages": [
         {
             "name": "composer/semver",
@@ -1329,30 +1329,6 @@
             "time": "2025-03-06T22:45:56+00:00"
         },
         {
-            "name": "llm-agent/php-client",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "../llm-agent-lib",
-                "reference": "a758e9f8bea5d2669f5242341d007bc27c625787"
-            },
-            "require": {
-                "datto/json-rpc": "^6.0",
-                "php": ">=8.1",
-                "phrity/websocket": "^1.7"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "LLMAgent\\": "src/"
-                }
-            },
-            "description": "PHP library for communicating with LLM agents via WebSocket",
-            "transport-options": {
-                "relative": true
-            }
-        },
-        {
             "name": "monolog/monolog",
             "version": "3.9.0",
             "source": {
@@ -1454,6 +1430,30 @@
                 }
             ],
             "time": "2025-03-24T10:02:05+00:00"
+        },
+        {
+            "name": "php-python/php-client",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../php-python-lib",
+                "reference": "531e670a7f194159f1516776cd20110e3e82e9d7"
+            },
+            "require": {
+                "datto/json-rpc": "^6.0",
+                "php": ">=8.1",
+                "phrity/websocket": "^1.7"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "PhpPython\\": "src/"
+                }
+            },
+            "description": "PHP library for communicating with LLM agents via WebSocket",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "phpdocumentor/reflection-common",
@@ -10402,7 +10402,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "llm-agent/php-client": 20
+        "php-python/php-client": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

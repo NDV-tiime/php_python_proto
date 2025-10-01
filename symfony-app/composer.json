@@ -44,7 +44,7 @@
         "symfony/yaml": "7.3.*",
         "twig/extra-bundle": "^2.12|^3.21",
         "twig/twig": "^2.12|^3.21.1",
-        "llm-agent/php-client": "dev-main"
+        "php-python/php-client": "dev-main"
     },
     "config": {
         "allow-plugins": {
@@ -58,7 +58,7 @@
     "repositories": [
         {
             "type": "path",
-            "url": "../llm-agent-lib"
+            "url": "../php-python-lib"
         }
     ],
     "autoload": {

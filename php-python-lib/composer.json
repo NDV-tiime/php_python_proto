@@ -1,5 +1,5 @@
 {
-    "name": "llm-agent/php-client",
+    "name": "php-python/php-client",
     "description": "PHP library for communicating with LLM agents via WebSocket",
     "type": "library",
     "require": {
@@ -9,7 +9,7 @@
     },
     "autoload": {
         "psr-4": {
-            "LLMAgent\\": "src/"
+            "PhpPython\\": "src/"
         }
     }
 }

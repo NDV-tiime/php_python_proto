@@ -24,7 +24,7 @@ A prototype demonstrating a Symfony application using a PHP library to communica
 
 ```
 php_python_proto/
-├── llm-agent-lib/          # PHP library for LLM agent communication
+├── php-python-lib/         # PHP library for LLM agent communication
 ├── symfony-app/            # Symfony application with chatbot
 └── agent-python/           # Python LLM agent server
 ```
@@ -34,7 +34,7 @@ php_python_proto/
 ### 1. Install PHP dependencies
 
 ```bash
-cd llm-agent-lib
+cd php-python-lib
 composer install
 
 cd symfony-app
@@ -76,7 +76,7 @@ php -S localhost:8000 -t public
 
 ## How It Works
 
-### 1. PHP Library (`llm-agent-lib`)
+### 1. PHP Library (`php-python-lib`)
 
 The library provides an `AgentClient` class that:
 - Connects to the Python WebSocket server

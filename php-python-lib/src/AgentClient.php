@@ -1,5 +1,5 @@
 <?php
-namespace LLMAgent;
+namespace PhpPython;
 
 use WebSocket\Client;
 use Datto\JsonRpc\Server;
