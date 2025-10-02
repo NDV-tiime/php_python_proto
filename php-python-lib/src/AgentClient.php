@@ -54,7 +54,7 @@ class AgentClient
         $this->server = new Server($evaluator);
     }
 
-    public function sendMessage(string $message, string $userName = 'User'): array
+    public function sendMessage(string $message, string $userName = 'User', array $functionMetadata = []): array
     {
         $this->messages = [];
         $this->analysis_results = [];
@@ -63,12 +63,13 @@ class AgentClient
         try {
             $client = new Client($this->wsUrl);
 
-            // Send initial setup message with user data
+            // Send initial setup message with user data and available functions
             $setupMessage = [
                 'type' => 'setup',
                 'data' => [
                     'user_message' => $message,
-                    'user_name' => $userName
+                    'user_name' => $userName,
+                    'available_functions' => $functionMetadata
                 ]
             ];
             $client->send(json_encode($setupMessage));
@@ -144,7 +145,6 @@ class AgentClient
                                 'data' => $replyData,
                             ];
                         } catch (Exception $rpcError) {
-                            // Create an error response if there was an exception
                             $response = [
                                 'type' => 'rpc_response',
                                 'id' => $pythonReqId,

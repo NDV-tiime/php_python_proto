@@ -28,8 +28,8 @@
 
     <div class="chat-container">
         <div id="step1">
-            <h3>Hello, what is your first name?</h3>
-            <input type="text" id="firstName" placeholder="Enter your first name">
+            <h3>Hello, what is your name?</h3>
+            <input type="text" id="firstName" placeholder="Enter your name">
             <button onclick="submitName()">Submit</button>
         </div>
 
@@ -59,7 +59,7 @@
         function submitName() {
             firstName = document.getElementById('firstName').value.trim();
             if (!firstName) {
-                alert('Please enter your first name');
+                alert('Please enter your name');
                 return;
             }
 

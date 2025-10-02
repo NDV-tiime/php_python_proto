@@ -126,39 +126,33 @@ class JsonRpcClient:
             raise
 
 class LLMAgent:
-    def __init__(self, rpc: JsonRpcClient, user_message: str, user_name: str):
+    def __init__(self, rpc: JsonRpcClient, user_message: str, user_name: str, available_functions: dict):
         self.rpc = rpc
         self.user_message = user_message
         self.user_name = user_name
+        self.available_functions = available_functions
         self.gen = self.agent_steps()
         self.current_step = None
         self.response_parts = []
         
     def agent_steps(self):
         print(f"[Agent] LLM Agent starting analysis for {self.user_name}: '{self.user_message}'")
-        
+        print(f"[Agent] Available functions: {list(self.available_functions.keys())}")
+
         self.response_parts = [f"Hello {self.user_name}!"]
         self.response_parts.append(f"I'm analyzing your message \"{self.user_message}\"...")
         
         length = yield ("getStringLength", [self.user_message])
         print(f"[Agent] Length: {length}")
-        
         self.response_parts.append(f" It has {length} characters.")
-        current_response = " ".join(self.response_parts)
         
         word_count = yield ("countWords", [self.user_message])
         print(f"[Agent] Word count: {word_count}")
-        
-        if word_count == 1:
-            self.response_parts[-1] = f" It's a single word with {length} characters."
-        else:
-            self.response_parts[-1] = f" It contains {word_count} words and {length} characters total."
-        current_response = " ".join(self.response_parts)
+        self.response_parts.append(f" It contains {word_count} word(s) and {length} characters total.")
         
         reversed_text = yield ("reverseString", [self.user_message])
         print(f"[Agent] Reversed: '{reversed_text}'")
-        
-        self.response_parts.append(f" When reversed, it becomes: \"{reversed_text}\"")
+        self.response_parts.append(f" When reversed, it becomes: \"{reversed_text}\".")
         
         if length <= 3:
             self.response_parts.append(" That's quite a short message!")
@@ -196,8 +190,8 @@ class LLMAgent:
             final_result = e.value if hasattr(e, 'value') else " ".join(self.response_parts)
             return False, final_result
 
-async def agent_logic(rpc: JsonRpcClient, user_message: str, user_name: str):
-    agent = LLMAgent(rpc, user_message, user_name)
+async def agent_logic(rpc: JsonRpcClient, user_message: str, user_name: str, available_functions: dict):
+    agent = LLMAgent(rpc, user_message, user_name, available_functions)
 
     while True:
         has_next, final_response = await agent.next_step()
@@ -232,6 +226,8 @@ async def ws_handler(request):
                 setup_data = data.get('data', {})
                 user_message = setup_data.get('user_message')
                 user_name = setup_data.get('user_name')
+                available_functions = setup_data.get('available_functions', {})
+                print(f"[Python] Received function metadata: {json.dumps(available_functions, indent=2)}")
                 break
         elif msg.type == aiohttp.WSMsgType.ERROR:
             print(f"[Python] WebSocket error during setup: {ws.exception()}")
@@ -242,7 +238,7 @@ async def ws_handler(request):
 
     rpc = JsonRpcClient(ws)
     msg_task = asyncio.create_task(rpc.message_loop())
-    agent_task = asyncio.create_task(agent_logic(rpc, user_message, user_name))
+    agent_task = asyncio.create_task(agent_logic(rpc, user_message, user_name, available_functions))
 
     done, pending = await asyncio.wait(
         [msg_task, agent_task], return_when=asyncio.FIRST_COMPLETED
