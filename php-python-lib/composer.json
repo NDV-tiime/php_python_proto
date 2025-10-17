@@ -3,7 +3,7 @@
     "description": "PHP library for communicating with LLM agents via WebSocket",
     "type": "library",
     "require": {
-        "php": ">=8.1",
+        "php": ">=8.4",
         "phrity/websocket": "^1.7",
         "datto/json-rpc": "^6.0"
     },
