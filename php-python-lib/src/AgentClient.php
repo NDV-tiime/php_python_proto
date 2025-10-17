@@ -43,9 +43,9 @@ class AgentClient
     private array $analysis_results = [];
     private ?string $agent_response = null;
 
-    public function __construct(string $wsUrl = "ws://127.0.0.1:9000/ws")
+    public function __construct(?string $wsUrl = null)
     {
-        $this->wsUrl = $wsUrl;
+        $this->wsUrl = $wsUrl ?? getenv('PYTHON_AGENT_WS_URL') ?: "ws://127.0.0.1:9000/ws";
     }
 
     public function registerFunctions(array $functions): void
