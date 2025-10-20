@@ -1,0 +1,2 @@
+# Custom PythonWebSocket Platform is registered via services.yaml
+# The platform service is available as ai.platform.python_websocket

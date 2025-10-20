@@ -1,0 +1,86 @@
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: php_python_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  python-agent:
+    build:
+      context: ./agent-python
+      dockerfile: Dockerfile
+    container_name: php_python_agent
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./agent-python:/app
+    networks:
+      - app_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import socket; s=socket.socket(); s.connect((\"127.0.0.1\", 9000)); s.close()'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  symfony-app:
+    build:
+      context: ./symfony-app
+      dockerfile: Dockerfile
+      target: frankenphp_dev
+    container_name: php_python_symfony
+    ports:
+      - name: http
+        target: 80
+        published: ${HTTP_PORT:-80}
+        protocol: tcp
+      - name: https
+        target: 443
+        published: ${HTTPS_PORT:-443}
+        protocol: tcp
+      - name: http3
+        target: 443
+        published: ${HTTP3_PORT:-443}
+        protocol: udp
+    volumes:
+      - ./symfony-app:/app
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}?serverVersion=18&charset=utf8
+      APP_ENV: ${APP_ENV:-dev}
+      APP_SECRET: ${APP_SECRET:-changeme}
+      PYTHON_AGENT_WS_URL: ${PYTHON_AGENT_WS_URL:-ws://python-agent:9000/ws}
+      SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
+      SYMFONY_VERSION: ${SYMFONY_VERSION:-}
+      STABILITY: ${STABILITY:-stable}
+    networks:
+      - app_network
+    depends_on:
+      db:
+        condition: service_healthy
+      python-agent:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  app_network:
+    driver: bridge
