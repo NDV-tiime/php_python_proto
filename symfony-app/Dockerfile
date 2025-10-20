@@ -55,9 +55,6 @@ RUN set -eux; \
 
 COPY --link frankenphp/conf.d/20-app.dev.ini $PHP_INI_DIR/app.conf.d/
 
-# Copy php-python-lib first (needed by composer)
-COPY --from=php-python-lib --link . /php-python-lib
-
 # Copy application code
 COPY --link . /app
 

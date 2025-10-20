@@ -18,3 +18,15 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    # PythonWebSocket Platform Bridge using Factory
+    ai.platform.python_websocket:
+        class: Symfony\AI\Platform\Platform
+        factory: ['App\Chatbot\Infrastructure\SymfonyAI\Bridge\PythonWebSocket\PlatformFactory', 'create']
+        arguments:
+            - '%env(PYTHON_AGENT_URL)%'
+        public: true
+
+    # Alias for autowiring
+    Symfony\AI\Platform\PlatformInterface:
+        alias: ai.platform.python_websocket
